@@ -1,56 +1,88 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
-  </div>
+    <validation-observer ref="form">
+        <div v-if="isLoading">
+            Loading...        
+        </div>
+        
+        <div>
+            <validation-provider :rules="{ asyncCheck: model }" v-slot="{ errors }">
+                <input 
+                    v-model="model.userInput"
+                    :disabled="isLoading"
+                    placeholder="Введите число"
+                >
+                
+                <button @click="submit">
+                    готово
+                </button>
+                
+                <div v-if="errors.length">
+                    {{ errors }}
+                </div>
+            </validation-provider>        
+        </div>        
+    </validation-observer>
 </template>
 
 <script>
-export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
-  }
-}
-</script>
+import { Validator, ValidationObserver, ValidationProvider } from 'vee-validate';
+import Vue from 'vue';
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
-</style>
+Vue.component('ValidationProvider', ValidationProvider);
+Vue.component('ValidationObserver', ValidationObserver);
+
+const fakeApiCall = model => new Promise((res, rej) => {
+    setTimeout(() => {
+        const userInput = Number(model.userInput);
+        
+        if (userInput < model.bar && userInput > model.foo) {
+            res();
+        } else {
+            rej(new Error('Uga buga'));
+        }
+    }, 1000);
+})
+
+Validator.extend('asyncCheck', {
+    validate: async (val, { model }) => {
+        try {
+            await fakeApiCall(model);
+           
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+    getMessage() {
+        return 'Вы ввели неверное число';
+    },
+}, { paramNames: ['model'] });
+
+export default {
+    name: 'HelloWorld',
+    data() {
+        return {
+            model: {
+                foo: 10,
+                bar: 100,
+                userInput: '',
+            },
+            isLoading: false,
+        };
+    },
+    methods: {
+        async submit() {
+            
+            this.isLoading = true;
+            
+            const success = await this.$refs.form.validate();
+            
+            if (success) {
+                alert('Вы прошли валидацию!');
+            }
+            
+            this.isLoading = false;
+        },
+    },
+};
+</script>
